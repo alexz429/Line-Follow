@@ -1,5 +1,4 @@
 #include <SPI.h>
-#include <Wire.h>             //Include the Wire Library
 #include <I2Cdev.h>
 #include <Wire.h>
 #define SS_M4 14
@@ -20,8 +19,8 @@
 #define MAXSPEED 80
 #define TURNSPEED 90
 #define TURNDELAY 300
-#define GREENCYCLE 500
-#define ISGREEN 300
+#define GREENCYCLE 300
+#define ISGREEN 150
 
 // changeable settings
 boolean TURNON=true;
@@ -130,6 +129,14 @@ int rightGreen[GREENCYCLE];
 int leftSum=0;
 int rightSum=0;
 int scales[]={0,0,0};
+void resetGreen(){
+  for(int count=0;count<GREENCYCLE;count++){
+    leftGreen[count]=0;
+    rightGreen[count]=0;
+    leftSum=0;
+    rightSum=0;
+  }
+}
 void refreshColor(){
   for(int count=ARRAYLENGTH-1;count>0;count--){
     pairings[0][count]=pairings[0][count-1];
@@ -206,34 +213,37 @@ void output(){
 void lineFollow(){
 refreshColor();
 if(scales[1]==2){
-//  if(leftSum>=ISGREEN&&rightSum>=ISGREEN){//if middle sees black and both are green, turn around
-//    Serial.println("TURN AROUND");
-//    turnRight();
-//    delay(4000);
-//    moveForward();
-//  }
-//  else if(leftSum>=ISGREEN){//if middle sees black and ONLY left is green, turnLeft
-//    Serial.println("TURN LEFT");
-//    moveForward();
-//    delay(TURNDELAY);
-//    turnLeft();
-//    delay(2000);
-//    
-//    moveForward();
-//  }
-//  else if(rightSum>=ISGREEN){//if middle sees black and ONLY right is green, turnRight
-//    Serial.println("TURN RIGHT");
-//    moveForward();
-//    delay(TURNDELAY);
-//    turnRight();
-//    delay(2000);
-//    moveForward();
-//  }
-//  else{//goes FORWARD on default
+  if(leftSum>=ISGREEN&&rightSum>=ISGREEN){//if middle sees black and both are green, turn around
+    Serial.println("TURN AROUND");
+    turnRight();
+    delay(4000);
+    moveForward();
+    resetGreen();
+  }
+  else if(leftSum>=ISGREEN){//if middle sees black and ONLY left is green, turnLeft
+    Serial.println("TURN LEFT");
+    moveForward();
+    delay(TURNDELAY);
+    turnLeft();
+    delay(2000);
+    resetGreen();
+    
+    moveForward();
+  }
+  else if(rightSum>=ISGREEN){//if middle sees black and ONLY right is green, turnRight
+    Serial.println("TURN RIGHT");
+    moveForward();
+    delay(TURNDELAY);
+    turnRight();
+    delay(2000);
+    resetGreen();
+    moveForward();
+  }
+  else{//goes FORWARD on default
     Serial.println("FORWARD");
     moveForward();    
   
-//  }
+  }
 }
 else{
   //if middle isn't black and left is black/green, turn left
@@ -264,10 +274,7 @@ else{
 void setup(){
   initMotors();
   Serial.begin(250000);
-  for(int count=0;count<GREENCYCLE;count++){
-    leftGreen[count]=-1;
-    rightGreen[count]=-1;
-  }
+  resetGreen();
 }
 
 
