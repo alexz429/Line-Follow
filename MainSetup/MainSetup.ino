@@ -95,6 +95,18 @@ void moveForward(){
   analogWrite(MotorStr[3],MAXSPEED);
  }
 }
+void moveBackward(){
+  if(TURNON){
+ digitalWrite(MotorDir[0],0);
+ digitalWrite(MotorDir[1],0);
+ digitalWrite(MotorDir[2],0);
+ digitalWrite(MotorDir[3],0);
+    analogWrite(MotorStr[0],MAXSPEED);
+  analogWrite(MotorStr[2],MAXSPEED);
+  analogWrite(MotorStr[1],MAXSPEED);
+  analogWrite(MotorStr[3],MAXSPEED);
+ }
+}
 void turnRight(){
  digitalWrite(MotorDir[0],1);
  digitalWrite(MotorDir[1],0);
@@ -195,9 +207,11 @@ void readPixy(){
 //      Serial.println("--------------------------");
       if(y+(h/2)>190){
         if(x<160){
+          Serial.println("LEFT FOUND");
           green|=2;
         }
         else{
+          Serial.println("RIGHT FOUND");
           green|=1;
         }
       }
@@ -244,7 +258,14 @@ if(scales[1]==2){//goes FORWARD on default
     else if(green==3){
       Serial.println("360");
       turnRight();
-      delay(4000);
+      delay(1800);
+      for(int count=0;count<200;count++){
+        delay(1);
+        refreshColor();
+      }
+      while(scales[1]!=2){
+        refreshColor();
+      }
     }
     else{
     Serial.println("FORWARD");
@@ -288,7 +309,6 @@ void setup(){
 
 void loop(){
 lineFollow();
-//readPixy();
-delay(1);  
+//delay(1);  
  }
 
