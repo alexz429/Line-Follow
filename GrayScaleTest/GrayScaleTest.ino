@@ -1,5 +1,5 @@
-#define PINNUM 14
-int pins[]={14,13,15};
+#define PINNUM 13
+int pins[]={13,14,15};
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);

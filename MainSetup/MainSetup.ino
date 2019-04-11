@@ -1,6 +1,8 @@
 #include <SPI.h>
 #include <I2Cdev.h>
 #include <Wire.h>
+#include <PixyI2C.h>
+
 #define SS_M4 14
 #define SS_M3 13
 #define SS_M2 12
@@ -17,17 +19,14 @@
 #define PWM_M4 6     // Timer0
 #define ENABLE_MOTORS 8
 #define MAXSPEED 80
-#define TURNSPEED 90
+#define TURNSPEED 100
 #define TURNDELAY 300
-#define GREENCYCLE 300
-#define ISGREEN 150
 
 // changeable settings
 boolean TURNON=true;
 
 #define ARRAYLENGTH 50
-int BLACK[]={300,180,300};
-int GREEN[]={160,250,150};
+int BLACK[]={200,180,200};
 //settings end
 
 //motor code
@@ -122,22 +121,17 @@ void turnLeft(){
 //motor code end
 
 //grayscale code
-int scaleAddress[]={14,13,15};
+int scaleAddress[]={13,14,15};
 int pairings[3][ARRAYLENGTH];
-int leftGreen[GREENCYCLE];
-int rightGreen[GREENCYCLE];
-int leftSum=0;
-int rightSum=0;
 int scales[]={0,0,0};
-void resetGreen(){
-  for(int count=0;count<GREENCYCLE;count++){
-    leftGreen[count]=0;
-    rightGreen[count]=0;
-    leftSum=0;
-    rightSum=0;
-  }
-}
+
+int cycle=0;
 void refreshColor(){
+  cycle++;
+  if(cycle==100){
+    cycle=0;
+    readPixy();
+  }
   for(int count=ARRAYLENGTH-1;count>0;count--){
     pairings[0][count]=pairings[0][count-1];
     pairings[1][count]=pairings[1][count-1];
@@ -145,37 +139,13 @@ void refreshColor(){
   }
   for(int count=0;count<3;count++){
     int next=analogRead(scaleAddress[count]);
-    Serial.print(next);
-    Serial.print(" ");
+//    Serial.print(next);
+//    Serial.print(" ");
     pairings[count][0]=next;
     
   scales[count]=getReading(count); 
   }
-  if(leftGreen[GREENCYCLE-1]==1){
-    leftSum--;
-  }
-  if(rightGreen[GREENCYCLE-1]==1){
-    rightSum--;
-  }
-    for(int count=GREENCYCLE-1;count>0;count--){
-      leftGreen[count]=leftGreen[count-1];
-      rightGreen[count]=rightGreen[count-1];
-    }
   
-  if(scales[0]==1){
-    leftGreen[0]=1;
-    leftSum++;
-  }
-  else{
-    leftGreen[0]=0;
-  }
-  if(scales[2]==1){
-    rightGreen[0]=1;
-    rightSum++;
-  }
-  else{
-    rightGreen[0]=0;
-  }
   output();
 }
 int getReading(int index){
@@ -193,9 +163,6 @@ int convertColor(int rawValue, int index){
     
     return 2;
   }
-  if(rawValue>GREEN[index]){
-    return 1;
-  }
   return 0;
 }
 void output(){
@@ -206,59 +173,100 @@ void output(){
   Serial.println();
 }
 //grayscale code end
+//Pixy Code
+PixyI2C pixy;
+int green=0;
+void readPixy(){
+  
+  green=0;
+  uint16_t blocks;
+  char buf[32];
+  blocks=pixy.getBlocks();
+  if(blocks){
+    for(int count=0;count<blocks;count++){
+      int x=pixy.blocks[count].x;
+      int y=pixy.blocks[count].y;
+      int w=pixy.blocks[count].width;
+      int h=pixy.blocks[count].height;
+//      Serial.println(x);
+//      Serial.println(y);
+//      Serial.println(w);
+//      Serial.println(h);
+//      Serial.println("--------------------------");
+      if(y+(h/2)>190){
+        if(x<160){
+          green|=2;
+        }
+        else{
+          green|=1;
+        }
+      }
+    }
+//    Serial.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+  }
+}
 
 //decision code
-
-
 void lineFollow(){
 refreshColor();
-if(scales[1]==2){
-  if(leftSum>=ISGREEN&&rightSum>=ISGREEN){//if middle sees black and both are green, turn around
-    Serial.println("TURN AROUND");
-    turnRight();
-    delay(4000);
-    moveForward();
-    resetGreen();
-  }
-  else if(leftSum>=ISGREEN){//if middle sees black and ONLY left is green, turnLeft
-    Serial.println("TURN LEFT");
-    moveForward();
-    delay(TURNDELAY);
-    turnLeft();
-    delay(2000);
-    resetGreen();
-    
-    moveForward();
-  }
-  else if(rightSum>=ISGREEN){//if middle sees black and ONLY right is green, turnRight
-    Serial.println("TURN RIGHT");
-    moveForward();
-    delay(TURNDELAY);
-    turnRight();
-    delay(2000);
-    resetGreen();
-    moveForward();
-  }
-  else{//goes FORWARD on default
+if(scales[1]==2){//goes FORWARD on default
+    if(green==1){
+      Serial.println("TURN RIGHT");
+      moveForward();
+      delay(400);
+      turnRight();
+      delay(800);
+      for(int count=0;count<200;count++){
+        refreshColor();
+        delay(1);
+      }
+      refreshColor();
+      while(scales[1]!=2){
+        refreshColor();
+      }
+    }
+    else if(green==2){
+      
+      Serial.println("TURN LEFT");
+      moveForward();
+      delay(400);
+      turnLeft();
+      delay(800);
+      for(int count=0;count<200;count++){
+        refreshColor();
+        delay(1);
+      }
+      refreshColor();
+      while(scales[1]!=2){
+        refreshColor();
+      }
+    }
+    else if(green==3){
+      Serial.println("360");
+      turnRight();
+      delay(4000);
+    }
+    else{
     Serial.println("FORWARD");
-    moveForward();    
-  
-  }
+    moveForward();
+    }    
 }
 else{
   //if middle isn't black and left is black/green, turn left
-  if(scales[0]==2||scales[0]==1){
+  if(scales[0]==2){
     Serial.println("TILT LEFT");
     turnLeft();
     while(scales[0]!=0&&scales[1]!=2){
+      Serial.println("TILT LEFT");
       refreshColor();
     }
     moveForward();
   }
-  else if(scales[2]==2||scales[2]==1){//if middle isn't black and left is black/green, turn right
+  else if(scales[2]==2){//if middle isn't black and left is black/green, turn right
     Serial.println("TILT RIGHT");
     turnRight();
     while(scales[2]!=0&&scales[1]!=2){
+      Serial.println("TILT RIGHT");
       refreshColor();
     }
     moveForward();
@@ -273,13 +281,14 @@ else{
 //decision code end
 void setup(){
   initMotors();
+  pixy.init();
   Serial.begin(250000);
-  resetGreen();
 }
 
 
 void loop(){
 lineFollow();
+//readPixy();
 delay(1);  
  }
 
