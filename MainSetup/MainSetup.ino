@@ -2,7 +2,6 @@
 #include <I2Cdev.h>
 #include <Wire.h>
 #include <PixyI2C.h>
-
 #define SS_M4 14
 #define SS_M3 13
 #define SS_M2 12
@@ -24,7 +23,7 @@
 
 // changeable settings
 boolean TURNON=true;
-
+boolean PINGACTIVATE=true;
 #define ARRAYLENGTH 50
 int BLACK[]={200,180,200};
 //settings end
@@ -131,7 +130,32 @@ void turnLeft(){
  
 }
 //motor code end
+//ultrasonic code
+int pingAddress[]={28,30,32};
+int readPing(int index){
+  
+  long duration;
+  pinMode(pingAddress[index],OUTPUT);
+  digitalWrite(pingAddress[index], LOW);
+  delayMicroseconds(2);
+  digitalWrite(pingAddress[index], HIGH);
+  delayMicroseconds(5);
+  digitalWrite(pingAddress[index], LOW);
+  pinMode(pingAddress[index], INPUT);
+  duration = pulseIn(pingAddress[index], HIGH);
 
+  // convert the time into a distance
+  
+  int cm = microsecondsToCentimeters(duration);
+  return cm;
+}
+long microsecondsToCentimeters(long microseconds) {
+  // The speed of sound is 340 m/s or 29 microseconds per centimeter.
+  // The ping travels out and back, so to find the distance of the object we
+  // take half of the distance travelled.
+  return microseconds / 29 / 2;
+}
+//ultrasonic code end
 //grayscale code
 int scaleAddress[]={13,14,15};
 int pairings[3][ARRAYLENGTH];
@@ -143,6 +167,11 @@ void refreshColor(){
   if(cycle==100){
     cycle=0;
     readPixy();
+    int out=readPing(1);
+    Serial.print(out);
+    Serial.println("++++++++++++++++++++++++++++++++++++++++++");
+    delay(2000);
+    
   }
   for(int count=ARRAYLENGTH-1;count>0;count--){
     pairings[0][count]=pairings[0][count-1];
@@ -194,6 +223,8 @@ void readPixy(){
   uint16_t blocks;
   char buf[32];
   blocks=pixy.getBlocks();
+  Serial.print(blocks);
+  Serial.println(" BLOCKS");
   if(blocks){
     for(int count=0;count<blocks;count++){
       int x=pixy.blocks[count].x;
@@ -215,19 +246,41 @@ void readPixy(){
           green|=1;
         }
       }
+      
     }
+    
 //    Serial.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
   }
 }
+//pixy code end
 
 //decision code
 void lineFollow(){
 refreshColor();
+
 if(scales[1]==2){//goes FORWARD on default
     if(green==1){
+      for(int count=0;count<10;count++){
+      readPixy();
+      if(green==3){
+        Serial.println("360");
+      turnRight();
+      delay(1800);
+      for(int count=0;count<200;count++){
+        delay(1);
+        refreshColor();
+      }
+      while(scales[1]!=2){
+        refreshColor();
+      }
+      break;
+      }
+      delay(10);
+      
+      }
       Serial.println("TURN RIGHT");
       moveForward();
-      delay(400);
+      delay(300);
       turnRight();
       delay(400);
       for(int count=0;count<200;count++){
@@ -240,10 +293,27 @@ if(scales[1]==2){//goes FORWARD on default
       }
     }
     else if(green==2){
+      for(int count=0;count<10;count++){
+      readPixy();
+      if(green==3){
+        Serial.println("360");
+      turnRight();
+      delay(1800);
+      for(int count=0;count<200;count++){
+        delay(1);
+        refreshColor();
+      }
+      while(scales[1]!=2){
+        refreshColor();
+      }
+      break;
+      }
+      delay(10);
       
+      }
       Serial.println("TURN LEFT");
       moveForward();
-      delay(400);
+      delay(300);
       turnLeft();
       delay(400);
       for(int count=0;count<200;count++){
@@ -275,6 +345,7 @@ if(scales[1]==2){//goes FORWARD on default
 else{
   //if middle isn't black and left is black/green, turn left
   if(scales[0]==2){
+    
     Serial.println("TILT LEFT");
     turnLeft();
     while(scales[0]!=0&&scales[1]!=2){
