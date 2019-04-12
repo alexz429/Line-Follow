@@ -90,9 +90,9 @@ void moveForward(){
  digitalWrite(MotorDir[2],1);
  digitalWrite(MotorDir[3],1);
     analogWrite(MotorStr[0],MAXSPEED);
-  analogWrite(MotorStr[2],MAXSPEED);
+  analogWrite(MotorStr[2],MAXSPEED+30);
   analogWrite(MotorStr[1],MAXSPEED);
-  analogWrite(MotorStr[3],MAXSPEED);
+  analogWrite(MotorStr[3],MAXSPEED+30);
  }
 }
 void moveBackward(){
@@ -113,8 +113,8 @@ void turnRight(){
  digitalWrite(MotorDir[2],0);
  digitalWrite(MotorDir[3],1);
     analogWrite(MotorStr[0],TURNSPEED);
-  analogWrite(MotorStr[2],MAXSPEED);
-  analogWrite(MotorStr[1],MAXSPEED);
+  analogWrite(MotorStr[2],MAXSPEED+10);
+  analogWrite(MotorStr[1],MAXSPEED+10);
   analogWrite(MotorStr[3],TURNSPEED);
  
 }
@@ -124,10 +124,10 @@ void turnLeft(){
  digitalWrite(MotorDir[1],1);
  digitalWrite(MotorDir[2],1);
  digitalWrite(MotorDir[3],0);
-    analogWrite(MotorStr[0],MAXSPEED);
+    analogWrite(MotorStr[0],MAXSPEED+10);
   analogWrite(MotorStr[2],TURNSPEED);
   analogWrite(MotorStr[1],TURNSPEED);
-  analogWrite(MotorStr[3],MAXSPEED);
+  analogWrite(MotorStr[3],MAXSPEED+10);
  
 }
 //motor code end
@@ -229,7 +229,7 @@ if(scales[1]==2){//goes FORWARD on default
       moveForward();
       delay(400);
       turnRight();
-      delay(800);
+      delay(400);
       for(int count=0;count<200;count++){
         refreshColor();
         delay(1);
@@ -245,7 +245,7 @@ if(scales[1]==2){//goes FORWARD on default
       moveForward();
       delay(400);
       turnLeft();
-      delay(800);
+      delay(400);
       for(int count=0;count<200;count++){
         refreshColor();
         delay(1);
