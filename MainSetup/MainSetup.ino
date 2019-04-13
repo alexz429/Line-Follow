@@ -170,7 +170,7 @@ void refreshColor(){
     int out=readPing(1);
     Serial.print(out);
     Serial.println("++++++++++++++++++++++++++++++++++++++++++");
-    delay(2000);
+//    delay(2000);
     
   }
   for(int count=ARRAYLENGTH-1;count>0;count--){
