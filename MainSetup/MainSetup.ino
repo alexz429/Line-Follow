@@ -17,15 +17,14 @@
 #define PWM_M3 5
 #define PWM_M4 6     // Timer0
 #define ENABLE_MOTORS 8
-#define MAXSPEED 80
-#define TURNSPEED 100
+#define MAXSPEED 60
+#define TURNSPEED 80
 #define TURNDELAY 300
-
+#define CYCLERATE 5
 // changeable settings
 boolean TURNON=true;
 boolean PINGACTIVATE=true;
-#define ARRAYLENGTH 50
-int BLACK[]={200,180,200};
+int BLACK[]={340,240,230};
 //settings end
 
 //motor code
@@ -78,9 +77,18 @@ void initMotors(){
   SPI.transfer(lowByte(configWord));
   SPI.transfer(highByte(configWord));
   digitalWrite(SS_M4, HIGH);
-
   //Set initial actuator settings to pull at 0 speed for safety
   digitalWrite(ENABLE_MOTORS, LOW);// LOW = enabled  
+}
+void stopMotor(){
+  digitalWrite(MotorDir[0],1);
+ digitalWrite(MotorDir[1],1);
+ digitalWrite(MotorDir[2],1);
+ digitalWrite(MotorDir[3],1);
+    analogWrite(MotorStr[0],0);
+  analogWrite(MotorStr[2],0);
+  analogWrite(MotorStr[1],0);
+  analogWrite(MotorStr[3],0);
 }
 void moveForward(){
  if(TURNON){
@@ -115,7 +123,6 @@ void turnRight(){
   analogWrite(MotorStr[2],MAXSPEED+10);
   analogWrite(MotorStr[1],MAXSPEED+10);
   analogWrite(MotorStr[3],TURNSPEED);
- 
 }
 
 void turnLeft(){
@@ -127,13 +134,11 @@ void turnLeft(){
   analogWrite(MotorStr[2],TURNSPEED);
   analogWrite(MotorStr[1],TURNSPEED);
   analogWrite(MotorStr[3],MAXSPEED+10);
- 
 }
 //motor code end
 //ultrasonic code
-int pingAddress[]={28,30,32};
+int pingAddress[]={32,30,28};
 int readPing(int index){
-  
   long duration;
   pinMode(pingAddress[index],OUTPUT);
   digitalWrite(pingAddress[index], LOW);
@@ -143,9 +148,7 @@ int readPing(int index){
   digitalWrite(pingAddress[index], LOW);
   pinMode(pingAddress[index], INPUT);
   duration = pulseIn(pingAddress[index], HIGH);
-
   // convert the time into a distance
-  
   int cm = microsecondsToCentimeters(duration);
   return cm;
 }
@@ -158,50 +161,24 @@ long microsecondsToCentimeters(long microseconds) {
 //ultrasonic code end
 //grayscale code
 int scaleAddress[]={13,14,15};
-int pairings[3][ARRAYLENGTH];
 int scales[]={0,0,0};
-
+int frontPing=10000;
 int cycle=0;
 void refreshColor(){
   cycle++;
-  if(cycle==100){
+    readPixy(190);
+  if(cycle==CYCLERATE){
     cycle=0;
-    readPixy();
-    int out=readPing(1);
-    Serial.print(out);
-    Serial.println("++++++++++++++++++++++++++++++++++++++++++");
+     frontPing=readPing(1);
 //    delay(2000);
-    
-  }
-  for(int count=ARRAYLENGTH-1;count>0;count--){
-    pairings[0][count]=pairings[0][count-1];
-    pairings[1][count]=pairings[1][count-1];
-    pairings[2][count]=pairings[2][count-1];
   }
   for(int count=0;count<3;count++){
-    int next=analogRead(scaleAddress[count]);
-//    Serial.print(next);
-//    Serial.print(" ");
-    pairings[count][0]=next;
-    
-  scales[count]=getReading(count); 
+  scales[count]=convertColor(analogRead(scaleAddress[count]), count); 
   }
-  
   output();
-}
-int getReading(int index){
-  int tally=0;
-  for(int count=0;count<ARRAYLENGTH;count++){
-    tally+=pairings[index][count];
-  }
-  tally=tally/ARRAYLENGTH;
-  int out=convertColor(tally, index);
-  
-  return out;
 }
 int convertColor(int rawValue, int index){
   if(rawValue>BLACK[index]){
-    
     return 2;
   }
   return 0;
@@ -217,14 +194,14 @@ void output(){
 //Pixy Code
 PixyI2C pixy;
 int green=0;
-void readPixy(){
+void readPixy(int bound){
   
   green=0;
+  int left=0;
+  int right=0;
   uint16_t blocks;
   char buf[32];
   blocks=pixy.getBlocks();
-  Serial.print(blocks);
-  Serial.println(" BLOCKS");
   if(blocks){
     for(int count=0;count<blocks;count++){
       int x=pixy.blocks[count].x;
@@ -236,106 +213,154 @@ void readPixy(){
 //      Serial.println(w);
 //      Serial.println(h);
 //      Serial.println("--------------------------");
-      if(y+(h/2)>190){
+      if(y+(h/2)>bound){
         if(x<160){
-          Serial.println("LEFT FOUND");
-          green|=2;
+//          Serial.println("LEFT FOUND");
+          left=2;
         }
         else{
-          Serial.println("RIGHT FOUND");
-          green|=1;
+//          Serial.println("RIGHT FOUND");
+          right=1;
         }
       }
       
-    }
-    
+    }  
 //    Serial.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
   }
+  green=left+right;
 }
+
 //pixy code end
 
 //decision code
+void flip(){
+  green=0;
+  BLACK[0]=300;
+  BLACK[2]=300;
+  for(int count=0;count<15;count++){
+  refreshColor();
+  if(scales[0]==2&&scales[2]==2){
+    BLACK[0]=200;
+    BLACK[2]=200;
+    return;
+  }
+    delay(3);
+  }
+  BLACK[0]=200;
+  BLACK[2]=200;
+  Serial.println("360");
+      turnRight();
+      delay(1800);
+      for(int count=0;count<200;count++){
+        delay(1);
+        refreshColor();
+      }
+      while(scales[1]!=2&&scales[2]!=2){
+        refreshColor();
+      }
+           
+}
+int validateTurn(){
+  green=0;
+  delay(200);
+      for(int count=0;count<200;count++){
+        refreshColor();
+        delay(1);
+      }
+//      refreshColor();
+      for(int count=0;count<60;count++){
+        refreshColor();
+         if(scales[1]==2){
+          moveForward();
+          return 1;
+        }
+        delay(10);
+      }
+      return 0;
+}
+void avoidObstacle(){
+//  int left=readPing(0);
+  moveBackward();
+  delay(700);
+  turnLeft();
+  delay(500);
+  moveForward();
+  delay(2500);
+  turnRight();
+  delay(1500);
+  moveForward();
+  refreshColor();
+  while(scales[1]!=2){
+  refreshColor();
+  }
+}
 void lineFollow(){
 refreshColor();
 
 if(scales[1]==2){//goes FORWARD on default
+    if(frontPing<5){
+      avoidObstacle();
+      frontPing=1000;
+      return;
+    }
     if(green==1){
-      for(int count=0;count<10;count++){
-      readPixy();
+      moveBackward();
+      delay(200);
+      //at any point of the go forward, if the code sees two green instead, it will do a 360
+      stopMotor();
+      for(int count=0;count<100;count++){
+      readPixy(100);
       if(green==3){
-        Serial.println("360");
-      turnRight();
-      delay(1800);
-      for(int count=0;count<200;count++){
-        delay(1);
-        refreshColor();
-      }
-      while(scales[1]!=2){
-        refreshColor();
-      }
-      break;
+       flip();
+      return;
       }
       delay(10);
-      
       }
       Serial.println("TURN RIGHT");
       moveForward();
-      delay(300);
+      delay(700);
       turnRight();
-      delay(400);
-      for(int count=0;count<200;count++){
-        refreshColor();
-        delay(1);
+      if(validateTurn()==1){
       }
-      refreshColor();
-      while(scales[1]!=2){
+      else{
+      turnLeft();
+        while(scales[1]!=2&&scales[0]!=2){  
         refreshColor();
+        }  
       }
     }
     else if(green==2){
-      for(int count=0;count<10;count++){
-      readPixy();
+      moveBackward();
+      delay(200);
+      //at any point of the go forward, if the code sees two green instead, it will do a 360
+      stopMotor();
+      for(int count=0;count<100;count++){
+      readPixy(100);
       if(green==3){
-        Serial.println("360");
-      turnRight();
-      delay(1800);
-      for(int count=0;count<200;count++){
-        delay(1);
-        refreshColor();
-      }
-      while(scales[1]!=2){
-        refreshColor();
-      }
-      break;
+        flip();
+      return;
       }
       delay(10);
-      
       }
       Serial.println("TURN LEFT");
       moveForward();
-      delay(300);
+      delay(700);
       turnLeft();
-      delay(400);
-      for(int count=0;count<200;count++){
-        refreshColor();
-        delay(1);
+      if(validateTurn()==1){
+        Serial.println("HAHAHAHAHA");
+        delay(1000);
       }
-      refreshColor();
-      while(scales[1]!=2){
+      else{
+//      Serial.println("OOF----------------------------------------");
+//      delay(500);
+      turnRight();
+      while(scales[1]!=2&&scales[2]!=2){
         refreshColor();
+      }
       }
     }
     else if(green==3){
-      Serial.println("360");
-      turnRight();
-      delay(1800);
-      for(int count=0;count<200;count++){
-        delay(1);
-        refreshColor();
-      }
-      while(scales[1]!=2){
-        refreshColor();
-      }
+      flip();
     }
     else{
     Serial.println("FORWARD");
@@ -379,6 +404,8 @@ void setup(){
 
 
 void loop(){
+//  frontPing=readPing(1);
+//  Serial.println(frontPing);
 lineFollow();
 //delay(1);  
  }

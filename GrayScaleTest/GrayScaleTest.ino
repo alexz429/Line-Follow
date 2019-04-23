@@ -1,4 +1,4 @@
-#define PINNUM 13
+#define PINNUM 14
 int pins[]={13,14,15};
 void setup() {
   // put your setup code here, to run once:
