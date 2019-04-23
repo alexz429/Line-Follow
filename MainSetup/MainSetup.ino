@@ -17,20 +17,20 @@
 #define PWM_M3 5
 #define PWM_M4 6     // Timer0
 #define ENABLE_MOTORS 8
-#define MAXSPEED 60
-#define TURNSPEED 80
-#define TURNDELAY 300
-#define CYCLERATE 5
+
 // changeable settings
 boolean TURNON=true;
-boolean PINGACTIVATE=true;
-int BLACK[]={340,240,230};
+int BLACK[]={300,280,240};
+#define MAXSPEED 60
+#define TURNSPEED 80
+#define CYCLERATE 3
 //settings end
 
+int noblack=0;
 //motor code
 int MotorDir[]={DIR_M1,DIR_M2,DIR_M3,DIR_M4};
 int MotorStr[]={PWM_M1,PWM_M2,PWM_M3,PWM_M4};
-void initMotors(){
+void initMotors(){// default setup code for the multimoto motor shield
   unsigned int configWord;
   Serial.println("Motor test!");
   pinMode(SS_M1, OUTPUT); digitalWrite(SS_M1, LOW);  // HIGH = not selected
@@ -119,10 +119,10 @@ void turnRight(){
  digitalWrite(MotorDir[1],0);
  digitalWrite(MotorDir[2],0);
  digitalWrite(MotorDir[3],1);
-    analogWrite(MotorStr[0],TURNSPEED);
+    analogWrite(MotorStr[0],TURNSPEED+10);
   analogWrite(MotorStr[2],MAXSPEED+10);
   analogWrite(MotorStr[1],MAXSPEED+10);
-  analogWrite(MotorStr[3],TURNSPEED);
+  analogWrite(MotorStr[3],TURNSPEED+10);
 }
 
 void turnLeft(){
@@ -131,8 +131,8 @@ void turnLeft(){
  digitalWrite(MotorDir[2],1);
  digitalWrite(MotorDir[3],0);
     analogWrite(MotorStr[0],MAXSPEED+10);
-  analogWrite(MotorStr[2],TURNSPEED);
-  analogWrite(MotorStr[1],TURNSPEED);
+  analogWrite(MotorStr[2],TURNSPEED+10);
+  analogWrite(MotorStr[1],TURNSPEED+10);
   analogWrite(MotorStr[3],MAXSPEED+10);
 }
 //motor code end
@@ -165,25 +165,25 @@ int scales[]={0,0,0};
 int frontPing=10000;
 int cycle=0;
 void refreshColor(){
-  cycle++;
+//  cycle++;
     readPixy(190);
-  if(cycle==CYCLERATE){
-    cycle=0;
-     frontPing=readPing(1);
-//    delay(2000);
-  }
+//  if(cycle==CYCLERATE){//reads the ultrasonic sensor in certain increments to not lag out the robot
+//    cycle=0;
+//     frontPing=readPing(1);
+//
+//  }
   for(int count=0;count<3;count++){
   scales[count]=convertColor(analogRead(scaleAddress[count]), count); 
   }
-  output();
+//  output();
 }
-int convertColor(int rawValue, int index){
+int convertColor(int rawValue, int index){//distinguishes between white (0) and black (2) using preset values 
   if(rawValue>BLACK[index]){
     return 2;
   }
   return 0;
 }
-void output(){
+void output(){//writes the values of the grayscale to the console
   for(int count=0;count<3;count++){
     Serial.print(scales[count]);
     Serial.print(" ");
@@ -194,27 +194,22 @@ void output(){
 //Pixy Code
 PixyI2C pixy;
 int green=0;
-void readPixy(int bound){
+void readPixy(int bound){//reads all values of the pixy
   
   green=0;
   int left=0;
   int right=0;
   uint16_t blocks;
   char buf[32];
-  blocks=pixy.getBlocks();
+  blocks=pixy.getBlocks();//calls the blocks from the pixy
   if(blocks){
-    for(int count=0;count<blocks;count++){
+    for(int count=0;count<blocks;count++){//since the only signature we set was green, we don't need to check the sigID
       int x=pixy.blocks[count].x;
       int y=pixy.blocks[count].y;
       int w=pixy.blocks[count].width;
       int h=pixy.blocks[count].height;
-//      Serial.println(x);
-//      Serial.println(y);
-//      Serial.println(w);
-//      Serial.println(h);
-//      Serial.println("--------------------------");
-      if(y+(h/2)>bound){
-        if(x<160){
+      if(y+(h/2)>bound){//checks if the green is lower down in the screen
+        if(x<160){//checks if it is left or right
 //          Serial.println("LEFT FOUND");
           left=2;
         }
@@ -225,7 +220,6 @@ void readPixy(int bound){
       }
       
     }  
-//    Serial.println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
   }
   green=left+right;
 }
@@ -233,61 +227,49 @@ void readPixy(int bound){
 //pixy code end
 
 //decision code
-void flip(){
+void flip(){//the 360 code turn the robot around
   green=0;
-  BLACK[0]=300;
-  BLACK[2]=300;
-  for(int count=0;count<15;count++){
-  refreshColor();
-  if(scales[0]==2&&scales[2]==2){
-    BLACK[0]=200;
-    BLACK[2]=200;
-    return;
-  }
-    delay(3);
-  }
-  BLACK[0]=200;
-  BLACK[2]=200;
   Serial.println("360");
       turnRight();
-      delay(1800);
-      for(int count=0;count<200;count++){
+      delay(1000);
+      for(int count=0;count<200;count++){//refreshes the grayscale values
         delay(1);
         refreshColor();
       }
-      while(scales[1]!=2&&scales[2]!=2){
+      while(scales[1]!=2){//will keep on turning until it sees black again
         refreshColor();
       }
-           
+      moveForward();
+      delay(100);
 }
-int validateTurn(){
+int validateTurn(){//checks each turn to make sure the turn is a REAL green (not one after the black)
+  //this is based on the fact that if the robot turns on a green AFTER the black line, it will have to do a turn of over 90 degrees
   green=0;
-  delay(200);
+  delay(500);
       for(int count=0;count<200;count++){
         refreshColor();
         delay(1);
       }
 //      refreshColor();
-      for(int count=0;count<60;count++){
+      for(int count=0;count<50;count++){
         refreshColor();
          if(scales[1]==2){
           moveForward();
-          return 1;
+          return 1;//returns 1 if the black line was sensed again
         }
         delay(10);
       }
-      return 0;
+      return 0;//returns 0 if the black line wasn't found in a 90 degree turn
 }
-void avoidObstacle(){
-//  int left=readPing(0);
+void avoidObstacle(){//the overall manuever for the obstacle avoidance
   moveBackward();
   delay(700);
   turnLeft();
-  delay(500);
+  delay(400);
   moveForward();
-  delay(2500);
+  delay(1700);
   turnRight();
-  delay(1500);
+  delay(900);
   moveForward();
   refreshColor();
   while(scales[1]!=2){
@@ -296,14 +278,14 @@ void avoidObstacle(){
 }
 void lineFollow(){
 refreshColor();
-
 if(scales[1]==2){//goes FORWARD on default
-    if(frontPing<5){
-      avoidObstacle();
-      frontPing=1000;
-      return;
-    }
-    if(green==1){
+  noblack=0;
+//    if(frontPing<12){//if the front ping senses an obstacle close to it, activate avoid
+//      avoidObstacle();
+//      frontPing=1000;
+//      return;
+//    }
+    if(green==1){//if the pixy sees green on the right, turn right
       moveBackward();
       delay(200);
       //at any point of the go forward, if the code sees two green instead, it will do a 360
@@ -329,7 +311,7 @@ if(scales[1]==2){//goes FORWARD on default
         }  
       }
     }
-    else if(green==2){
+    else if(green==2){//if the pixy sees green on the left, turn left
       moveBackward();
       delay(200);
       //at any point of the go forward, if the code sees two green instead, it will do a 360
@@ -351,15 +333,13 @@ if(scales[1]==2){//goes FORWARD on default
         delay(1000);
       }
       else{
-//      Serial.println("OOF----------------------------------------");
-//      delay(500);
       turnRight();
       while(scales[1]!=2&&scales[2]!=2){
         refreshColor();
       }
       }
     }
-    else if(green==3){
+    else if(green==3){//if there are two greens, turn around
       flip();
     }
     else{
@@ -370,7 +350,7 @@ if(scales[1]==2){//goes FORWARD on default
 else{
   //if middle isn't black and left is black/green, turn left
   if(scales[0]==2){
-    
+    noblack=0;
     Serial.println("TILT LEFT");
     turnLeft();
     while(scales[0]!=0&&scales[1]!=2){
@@ -379,7 +359,8 @@ else{
     }
     moveForward();
   }
-  else if(scales[2]==2){//if middle isn't black and left is black/green, turn right
+  else if(scales[2]==2){//if middle isn't black and right is black/green, turn right
+    noblack=0;
     Serial.println("TILT RIGHT");
     turnRight();
     while(scales[2]!=0&&scales[1]!=2){
@@ -388,7 +369,8 @@ else{
     }
     moveForward();
   }
-  else{
+  else{//if nothing sees black, it might be in rescue so start counting up 
+    noblack++;
     Serial.println("LOST");
   }
     
@@ -401,12 +383,49 @@ void setup(){
   pixy.init();
   Serial.begin(250000);
 }
-
-
+int activate=0;
+int loops=4;
 void loop(){
-//  frontPing=readPing(1);
-//  Serial.println(frontPing);
-lineFollow();
-//delay(1);  
+  if(noblack>2000){
+    Serial.println("TICK");
+    stopMotor();
+    activate=1; 
+    delay(2000);
+    noblack=0;
+  }
+  
+if(activate==1){
+  refreshColor();
+  if(scales[1]==2){
+    activate=0;
+    delay(2000);
+    
+  }
+  int right=readPing(2);
+  int mid=readPing(1);
+  
+  if(mid<15){
+    if(right>40){
+      loops--;
+      if(loops==0){
+        turnRight();
+        delay(800);
+      }
+      else{
+        turnLeft();
+        delay(800);
+      }
+    }
+    turnLeft(); 
+    delay(100); 
+  }
+  else{
+    moveForward();
+  }
+}
+else{
+  lineFollow();
+
+}
  }
 
