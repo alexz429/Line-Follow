@@ -20,7 +20,7 @@
 
 // changeable settings
 boolean TURNON=true;
-int BLACK[]={300,280,240};
+int BLACK[]={280,200,230};
 #define MAXSPEED 60
 #define TURNSPEED 80
 #define CYCLERATE 3
@@ -392,32 +392,28 @@ void loop(){
     activate=1; 
     delay(2000);
     noblack=0;
+    
+    delay(2000);
+    moveBackward();
+    delay(500);
+    turnLeft();
+    delay(700);
   }
   
 if(activate==1){
   refreshColor();
   if(scales[1]==2){
     activate=0;
-    delay(2000);
-    
   }
-  int right=readPing(2);
+  int left=readPing(0);
   int mid=readPing(1);
   
   if(mid<15){
-    if(right>40){
-      loops--;
-      if(loops==0){
-        turnRight();
-        delay(800);
-      }
-      else{
-        turnLeft();
-        delay(800);
-      }
-    }
-    turnLeft(); 
-    delay(100); 
+   while(mid<20){
+    turnRight();
+    delay(50);
+    mid=readPing(1);
+   }
   }
   else{
     moveForward();
